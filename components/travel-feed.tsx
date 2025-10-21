@@ -14,11 +14,20 @@ import {
   BookmarkIcon,
   ChevronRight,
   Plane,
+  User,
+  HelpCircle,
+  LogOut,
+  MapPin,
+  Calendar,
+  Users,
+  DollarSign,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 const hashtags = [
   "#여행",
@@ -136,12 +145,26 @@ const jobListings = [
     title: "강릉 서핑샵 강사",
     location: "강릉 경포대",
     image: "/gangneung-surfing-beach.jpg",
-    description: "서핑 강사 및 샵 운영 스태프 모집",
+    description: "서핑 강사 및 샵 운영 스테이프 모집",
     salary: "시급 15,000원",
   },
 ]
 
 export function TravelFeed() {
+  const [userProfile, setUserProfile] = useState({
+    username: "User1",
+    handle: "@user1",
+    email: "user1@example.com",
+    bio: "여행을 사랑하는 사람",
+    avatar: "/travel-user-avatar.jpg",
+  })
+
+  const [profileForm, setProfileForm] = useState({
+    username: userProfile.username,
+    email: userProfile.email,
+    bio: userProfile.bio,
+  })
+
   const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set())
   const [savedPosts, setSavedPosts] = useState<Set<number>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
@@ -151,6 +174,9 @@ export function TravelFeed() {
   const [postComments, setPostComments] = useState<Record<number, any[]>>(
     posts.reduce((acc, post) => ({ ...acc, [post.id]: post.comments }), {}),
   )
+  const [selectedHashtag, setSelectedHashtag] = useState<string | null>(null)
+  const [moreSubTab, setMoreSubTab] = useState<"menu" | "settings" | "travels" | "saved">("menu")
+  const [selectedPost, setSelectedPost] = useState<number | null>(null)
 
   const toggleLike = async (postId: number) => {
     const isLiked = likedPosts.has(postId)
@@ -173,7 +199,6 @@ export function TravelFeed() {
       const data = await response.json()
 
       if (!data.success) {
-        // 실패 시 상태 되돌리기
         setLikedPosts((prev) => {
           const newSet = new Set(prev)
           if (isLiked) {
@@ -187,7 +212,6 @@ export function TravelFeed() {
       }
     } catch (error) {
       console.error("좋아요 API 호출 실패:", error)
-      // 실패 시 상태 되돌리기
       setLikedPosts((prev) => {
         const newSet = new Set(prev)
         if (isLiked) {
@@ -221,7 +245,6 @@ export function TravelFeed() {
       const data = await response.json()
 
       if (!data.success) {
-        // 실패 시 상태 되돌리기
         setSavedPosts((prev) => {
           const newSet = new Set(prev)
           if (isSaved) {
@@ -235,7 +258,6 @@ export function TravelFeed() {
       }
     } catch (error) {
       console.error("저장 API 호출 실패:", error)
-      // 실패 시 상태 되돌리기
       setSavedPosts((prev) => {
         const newSet = new Set(prev)
         if (isSaved) {
@@ -266,7 +288,6 @@ export function TravelFeed() {
 
       if (data.success) {
         console.log("AI 검색 결과:", data.results)
-        // TODO: 검색 결과를 UI에 표시
       } else {
         console.error("검색 실패:", data.error)
       }
@@ -276,13 +297,18 @@ export function TravelFeed() {
   }
 
   const handleHashtagClick = async (hashtag: string) => {
+    if (selectedHashtag === hashtag) {
+      setSelectedHashtag(null)
+    } else {
+      setSelectedHashtag(hashtag)
+    }
+
     try {
       const response = await fetch(`/api/posts?hashtag=${encodeURIComponent(hashtag)}`)
       const data = await response.json()
 
       if (data.success) {
         console.log("해시태그 필터링 결과:", data.posts)
-        // TODO: 필터링된 게시물을 UI에 표시
       } else {
         console.error("해시태그 필터링 실패:", data.error)
       }
@@ -326,13 +352,10 @@ export function TravelFeed() {
       const data = await response.json()
 
       if (data.success) {
-        // 댓글 추가
         setPostComments((prev) => ({
           ...prev,
           [postId]: [...(prev[postId] || []), data.comment],
         }))
-
-        // 입력창 초기화
         setCommentInputs((prev) => ({ ...prev, [postId]: "" }))
       } else {
         alert(data.error)
@@ -355,6 +378,20 @@ export function TravelFeed() {
     })
   }
 
+  const viewPostDetail = (postId: number) => {
+    setSelectedPost(postId)
+    setActiveTab("home")
+    setMoreSubTab("menu")
+    setTimeout(() => {
+      const postElement = document.getElementById(`post-${postId}`)
+      if (postElement) {
+        postElement.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+    }, 100)
+  }
+
+  const filteredPosts = selectedHashtag ? posts.filter((post) => post.caption.includes(selectedHashtag)) : posts
+
   const renderHomePage = () => (
     <>
       {/* Question Section */}
@@ -365,7 +402,7 @@ export function TravelFeed() {
           {hashtags.map((tag) => (
             <Button
               key={tag}
-              variant="secondary"
+              variant={selectedHashtag === tag ? "default" : "secondary"}
               size="sm"
               className="rounded-full text-sm font-medium"
               onClick={() => handleHashtagClick(tag)}
@@ -378,8 +415,8 @@ export function TravelFeed() {
 
       {/* Feed Posts */}
       <div className="divide-y divide-border">
-        {posts.map((post) => (
-          <Card key={post.id} className="rounded-none border-0 border-b">
+        {filteredPosts.map((post) => (
+          <Card key={post.id} id={`post-${post.id}`} className="rounded-none border-0 border-b">
             {/* Post Header */}
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
@@ -550,99 +587,249 @@ export function TravelFeed() {
     </div>
   )
 
-  const renderMorePage = () => (
+  const renderSettingsPage = () => (
     <div className="px-4 py-6">
-      <h2 className="mb-8 text-center text-xl font-semibold text-foreground">더보기</h2>
-
-      {/* User Profile Section */}
-      <div className="mb-8 flex items-center gap-4 px-2">
-        <Avatar className="h-16 w-16">
-          <AvatarImage src="/travel-user-avatar.jpg" alt="User1" />
-          <AvatarFallback>U1</AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-semibold text-foreground">User1</p>
-          <p className="text-sm text-muted-foreground">@user1</p>
-        </div>
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => setMoreSubTab("menu")}>
+          <ChevronRight className="h-6 w-6 rotate-180" />
+        </Button>
+        <h2 className="text-xl font-semibold text-foreground">계정 설정</h2>
       </div>
 
-      {/* Menu Items */}
-      <div className="space-y-1">
-        <button
-          className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
-          onClick={async () => {
-            try {
-              const response = await fetch("/api/user/settings")
-              const data = await response.json()
-
-              if (data.success) {
-                console.log("사용자 설정:", data.settings)
-                // TODO: 설정 페이지로 이동 또는 모달 표시
-              }
-            } catch (error) {
-              console.error("설정 조회 실패:", error)
-            }
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <Settings className="h-6 w-6 text-foreground" />
-            <span className="text-base text-foreground">계정 설정</span>
+      <div className="space-y-6">
+        {/* Profile Settings */}
+        <Card className="p-4">
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+            <User className="h-5 w-5" />
+            프로필 설정
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="username">사용자 이름</Label>
+              <Input
+                id="username"
+                value={profileForm.username}
+                onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                value={profileForm.email}
+                onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="bio">소개</Label>
+              <Input
+                id="bio"
+                value={profileForm.bio}
+                onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <Button className="w-full" onClick={() => console.log("Save Profile")}>
+              저장
+            </Button>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </button>
+        </Card>
 
-        <button
-          className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
-          onClick={async () => {
-            try {
-              const response = await fetch("/api/user/travels")
-              const data = await response.json()
+        <Button variant="outline" className="w-full bg-transparent">
+          <HelpCircle className="mr-2 h-4 w-4" />
+          도움말
+        </Button>
 
-              if (data.success) {
-                console.log("내 여행 목록:", data.travels)
-                // TODO: 여행 목록 페이지로 이동
-              }
-            } catch (error) {
-              console.error("여행 목록 조회 실패:", error)
-            }
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <Plane className="h-6 w-6 text-foreground" />
-            <span className="text-base text-foreground">내 여행</span>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </button>
-
-        <button
-          className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
-          onClick={async () => {
-            try {
-              const response = await fetch("/api/user/saved-posts")
-              const data = await response.json()
-
-              if (data.success) {
-                console.log("저장된 게시물:", data.savedPosts)
-                // TODO: 저장된 게시물 페이지로 이동
-              }
-            } catch (error) {
-              console.error("저장된 게시물 조회 실패:", error)
-            }
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <BookmarkIcon className="h-6 w-6 text-foreground" />
-            <span className="text-base text-foreground">저장된 게시물</span>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </button>
+        <Button variant="destructive" className="w-full">
+          <LogOut className="mr-2 h-4 w-4" />
+          로그아웃
+        </Button>
       </div>
     </div>
   )
 
+  const renderTravelsPage = () => (
+    <div className="px-4 py-6">
+      <div className="mb-6 flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => setMoreSubTab("menu")}>
+          <ChevronRight className="h-6 w-6 rotate-180" />
+        </Button>
+        <h2 className="text-xl font-semibold text-foreground">내 여행</h2>
+      </div>
+
+      <div className="space-y-4">
+        {/* Example Travel Plans */}
+        <Card className="overflow-hidden">
+          <div className="relative h-40 w-full bg-muted">
+            <img
+              src="/jeju-island-sunrise-peak-beautiful-scenery.jpg"
+              alt="제주도 여행"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="p-4">
+            <h3 className="mb-2 text-lg font-semibold text-foreground">제주도 3박 4일</h3>
+            <div className="mb-3 space-y-1 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                2025년 11월 15일 - 18일
+              </p>
+              <p className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                제주도
+              </p>
+              <p className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                2명
+              </p>
+              <p className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                예산: 800,000원
+              </p>
+            </div>
+            <Button className="w-full">상세보기</Button>
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <div className="relative h-40 w-full bg-muted">
+            <img src="/busan-haeundae-sunset.png" alt="부산 여행" className="h-full w-full object-cover" />
+          </div>
+          <div className="p-4">
+            <h3 className="mb-2 text-lg font-semibold text-foreground">부산 주말 여행</h3>
+            <div className="mb-3 space-y-1 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                2025년 12월 7일 - 8일
+              </p>
+              <p className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                부산
+              </p>
+              <p className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                4명
+              </p>
+              <p className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                예산: 500,000원
+              </p>
+            </div>
+            <Button className="w-full">상세보기</Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  )
+
+  const renderSavedPostsPage = () => {
+    const savedPostsList = posts.filter((post) => savedPosts.has(post.id))
+
+    return (
+      <div className="px-4 py-6">
+        <div className="mb-6 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setMoreSubTab("menu")}>
+            <ChevronRight className="h-6 w-6 rotate-180" />
+          </Button>
+          <h2 className="text-xl font-semibold text-foreground">저장된 게시물</h2>
+        </div>
+
+        {savedPostsList.length === 0 ? (
+          <div className="py-12 text-center">
+            <BookmarkIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+            <p className="text-muted-foreground">저장된 게시물이 없습니다</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1">
+            {savedPostsList.map((post) => (
+              <button
+                key={post.id}
+                onClick={() => viewPostDetail(post.id)}
+                className="relative aspect-square overflow-hidden bg-muted transition-opacity hover:opacity-80"
+              >
+                <img src={post.image || "/placeholder.svg"} alt={post.caption} className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderMorePage = () => {
+    if (moreSubTab === "settings") return renderSettingsPage()
+    if (moreSubTab === "travels") return renderTravelsPage()
+    if (moreSubTab === "saved") return renderSavedPostsPage()
+
+    return (
+      <div className="px-4 py-6">
+        <h2 className="mb-8 text-center text-xl font-semibold text-foreground">더보기</h2>
+
+        {/* User Profile Section */}
+        <div className="mb-8 flex items-center gap-4 px-2">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={userProfile.avatar || "/placeholder.svg"} alt={userProfile.username} />
+            <AvatarFallback>{userProfile.username[0]}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold text-foreground">{userProfile.username}</p>
+            <p className="text-sm text-muted-foreground">{userProfile.handle}</p>
+            <p className="mt-1 text-sm text-foreground">{userProfile.bio}</p>
+          </div>
+        </div>
+
+        {/* Menu Items */}
+        <div className="space-y-1">
+          <button
+            className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
+            onClick={() => {
+              setProfileForm({
+                username: userProfile.username,
+                email: userProfile.email,
+                bio: userProfile.bio,
+              })
+              setMoreSubTab("settings")
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <Settings className="h-6 w-6 text-foreground" />
+              <span className="text-base text-foreground">계정 설정</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+
+          <button
+            className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
+            onClick={() => setMoreSubTab("travels")}
+          >
+            <div className="flex items-center gap-4">
+              <Plane className="h-6 w-6 text-foreground" />
+              <span className="text-base text-foreground">내 여행</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+
+          <button
+            className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
+            onClick={() => setMoreSubTab("saved")}
+          >
+            <div className="flex items-center gap-4">
+              <BookmarkIcon className="h-6 w-6 text-foreground" />
+              <span className="text-base text-foreground">저장된 게시물</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background pb-16">
-      {/* Header - Changed from "NUBIDA누비다" to just "NUBIDA" */}
+      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-card">
         <div className="mx-auto max-w-2xl px-4 py-3">
           <h1 className="text-2xl font-bold text-foreground">NUBIDA</h1>
