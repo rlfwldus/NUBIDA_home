@@ -42,7 +42,22 @@ const posts = [
     image: "/jeju-island-sunrise-peak-beautiful-scenery.jpg",
     likes: 1234,
     caption: "제주도에서의 완벽한 일출 🌅 #제주도 #여행스타그램",
-    comments: 89,
+    comments: [
+      {
+        id: 1,
+        username: "트래블메이트",
+        avatar: "/traveler-profile.png",
+        text: "정말 멋진 사진이네요!",
+        timeAgo: "1시간 전",
+      },
+      {
+        id: 2,
+        username: "세계여행가",
+        avatar: "/world-traveler-avatar.jpg",
+        text: "저도 가보고 싶어요",
+        timeAgo: "30분 전",
+      },
+    ],
     timeAgo: "2시간 전",
   },
   {
@@ -53,7 +68,9 @@ const posts = [
     image: "/busan-haeundae-sunset.png",
     likes: 2156,
     caption: "해운대 바다가 너무 아름다워요 🌊 #부산여행 #해운대",
-    comments: 124,
+    comments: [
+      { id: 1, username: "여행러버", avatar: "/travel-user-avatar.jpg", text: "부산 최고!", timeAgo: "2시간 전" },
+    ],
     timeAgo: "5시간 전",
   },
   {
@@ -64,7 +81,16 @@ const posts = [
     image: "/paris-eiffel-tower-romantic-view.jpg",
     likes: 3421,
     caption: "에펠탑 앞에서 ✨ 파리는 언제나 로맨틱해 #유럽여행 #파리",
-    comments: 201,
+    comments: [
+      {
+        id: 1,
+        username: "국내여행러",
+        avatar: "/korean-traveler.jpg",
+        text: "파리 너무 가고싶어요!",
+        timeAgo: "5시간 전",
+      },
+      { id: 2, username: "여행러버", avatar: "/travel-user-avatar.jpg", text: "로맨틱하네요", timeAgo: "3시간 전" },
+    ],
     timeAgo: "1일 전",
   },
   {
@@ -75,7 +101,7 @@ const posts = [
     image: "/gyeongju-bulguksa-temple-traditional.jpg",
     likes: 987,
     caption: "천년의 역사가 살아있는 곳 🏯 #경주여행 #국내여행",
-    comments: 56,
+    comments: [],
     timeAgo: "2일 전",
   },
 ]
@@ -120,8 +146,15 @@ export function TravelFeed() {
   const [savedPosts, setSavedPosts] = useState<Set<number>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("home")
+  const [commentInputs, setCommentInputs] = useState<Record<number, string>>({})
+  const [showComments, setShowComments] = useState<Set<number>>(new Set())
+  const [postComments, setPostComments] = useState<Record<number, any[]>>(
+    posts.reduce((acc, post) => ({ ...acc, [post.id]: post.comments }), {}),
+  )
 
   const toggleLike = async (postId: number) => {
+    const isLiked = likedPosts.has(postId)
+
     setLikedPosts((prev) => {
       const newSet = new Set(prev)
       if (newSet.has(postId)) {
@@ -131,11 +164,45 @@ export function TravelFeed() {
       }
       return newSet
     })
-    // TODO: API 연동 - 좋아요 API 호출
-    // Example: await fetch(`/api/posts/${postId}/like`, { method: 'POST' })
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/like`, {
+        method: isLiked ? "DELETE" : "POST",
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        // 실패 시 상태 되돌리기
+        setLikedPosts((prev) => {
+          const newSet = new Set(prev)
+          if (isLiked) {
+            newSet.add(postId)
+          } else {
+            newSet.delete(postId)
+          }
+          return newSet
+        })
+        console.error("좋아요 처리 실패:", data.error)
+      }
+    } catch (error) {
+      console.error("좋아요 API 호출 실패:", error)
+      // 실패 시 상태 되돌리기
+      setLikedPosts((prev) => {
+        const newSet = new Set(prev)
+        if (isLiked) {
+          newSet.add(postId)
+        } else {
+          newSet.delete(postId)
+        }
+        return newSet
+      })
+    }
   }
 
   const toggleSave = async (postId: number) => {
+    const isSaved = savedPosts.has(postId)
+
     setSavedPosts((prev) => {
       const newSet = new Set(prev)
       if (newSet.has(postId)) {
@@ -145,27 +212,147 @@ export function TravelFeed() {
       }
       return newSet
     })
-    // TODO: API 연동 - 저장 API 호출
-    // Example: await fetch(`/api/posts/${postId}/save`, { method: 'POST' })
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/save`, {
+        method: isSaved ? "DELETE" : "POST",
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        // 실패 시 상태 되돌리기
+        setSavedPosts((prev) => {
+          const newSet = new Set(prev)
+          if (isSaved) {
+            newSet.add(postId)
+          } else {
+            newSet.delete(postId)
+          }
+          return newSet
+        })
+        console.error("저장 처리 실패:", data.error)
+      }
+    } catch (error) {
+      console.error("저장 API 호출 실패:", error)
+      // 실패 시 상태 되돌리기
+      setSavedPosts((prev) => {
+        const newSet = new Set(prev)
+        if (isSaved) {
+          newSet.add(postId)
+        } else {
+          newSet.delete(postId)
+        }
+        return newSet
+      })
+    }
   }
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query)
-    // TODO: API 연동 - AI 챗봇 검색 API 호출
-    // Example: const results = await fetch(`/api/ai/search`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ query })
-    // })
+
+    if (!query.trim()) return
+
+    try {
+      const response = await fetch("/api/ai/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        console.log("AI 검색 결과:", data.results)
+        // TODO: 검색 결과를 UI에 표시
+      } else {
+        console.error("검색 실패:", data.error)
+      }
+    } catch (error) {
+      console.error("검색 API 호출 실패:", error)
+    }
   }
 
   const handleHashtagClick = async (hashtag: string) => {
-    // TODO: API 연동 - 해시태그 필터링 API 호출
-    // Example: const results = await fetch(`/api/posts?hashtag=${hashtag}`)
+    try {
+      const response = await fetch(`/api/posts?hashtag=${encodeURIComponent(hashtag)}`)
+      const data = await response.json()
+
+      if (data.success) {
+        console.log("해시태그 필터링 결과:", data.posts)
+        // TODO: 필터링된 게시물을 UI에 표시
+      } else {
+        console.error("해시태그 필터링 실패:", data.error)
+      }
+    } catch (error) {
+      console.error("해시태그 API 호출 실패:", error)
+    }
   }
 
   const handleJobApply = async (jobId: number) => {
-    // TODO: API 연동 - 일자리 지원 API 호출
-    // Example: await fetch(`/api/jobs/${jobId}/apply`, { method: 'POST' })
+    try {
+      const response = await fetch(`/api/jobs/${jobId}/apply`, {
+        method: "POST",
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert(data.message)
+      } else {
+        alert(data.error)
+      }
+    } catch (error) {
+      console.error("지원 API 호출 실패:", error)
+      alert("지원 중 오류가 발생했습니다")
+    }
+  }
+
+  const handleCommentSubmit = async (postId: number) => {
+    const commentText = commentInputs[postId]?.trim()
+    if (!commentText) return
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: commentText }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // 댓글 추가
+        setPostComments((prev) => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), data.comment],
+        }))
+
+        // 입력창 초기화
+        setCommentInputs((prev) => ({ ...prev, [postId]: "" }))
+      } else {
+        alert(data.error)
+      }
+    } catch (error) {
+      console.error("댓글 작성 API 호출 실패:", error)
+      alert("댓글 작성 중 오류가 발생했습니다")
+    }
+  }
+
+  const toggleComments = (postId: number) => {
+    setShowComments((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(postId)) {
+        newSet.delete(postId)
+      } else {
+        newSet.add(postId)
+      }
+      return newSet
+    })
   }
 
   const renderHomePage = () => (
@@ -224,7 +411,7 @@ export function TravelFeed() {
                       className={`h-6 w-6 ${likedPosts.has(post.id) ? "fill-red-500 text-red-500" : "text-foreground"}`}
                     />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Button variant="ghost" size="icon" onClick={() => toggleComments(post.id)} className="h-8 w-8">
                     <MessageCircle className="h-6 w-6" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -249,9 +436,62 @@ export function TravelFeed() {
                 <span className="text-foreground">{post.caption}</span>
               </p>
 
-              <button className="mb-1 text-sm text-muted-foreground hover:text-foreground">
-                댓글 {post.comments}개 모두 보기
-              </button>
+              {postComments[post.id]?.length > 0 && (
+                <button
+                  onClick={() => toggleComments(post.id)}
+                  className="mb-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  댓글 {postComments[post.id].length}개 모두 보기
+                </button>
+              )}
+
+              {showComments.has(post.id) && (
+                <div className="mt-4 space-y-3 border-t border-border pt-4">
+                  {postComments[post.id]?.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={comment.avatar || "/placeholder.svg"} alt={comment.username} />
+                        <AvatarFallback>{comment.username[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="text-sm">
+                          <span className="font-semibold text-foreground">{comment.username}</span>{" "}
+                          <span className="text-foreground">{comment.text}</span>
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">{comment.timeAgo}</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center gap-3 border-t border-border pt-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/travel-user-avatar.jpg" alt="User1" />
+                      <AvatarFallback>U1</AvatarFallback>
+                    </Avatar>
+                    <input
+                      type="text"
+                      placeholder="댓글 달기..."
+                      value={commentInputs[post.id] || ""}
+                      onChange={(e) => setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          handleCommentSubmit(post.id)
+                        }
+                      }}
+                      className="flex-1 border-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCommentSubmit(post.id)}
+                      disabled={!commentInputs[post.id]?.trim()}
+                      className="text-primary disabled:text-muted-foreground"
+                    >
+                      게시
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
             </div>
@@ -331,8 +571,17 @@ export function TravelFeed() {
         <button
           className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
           onClick={async () => {
-            // TODO: API 연동 - 계정 설정 페이지 데이터 로드
-            // Example: await fetch('/api/user/settings')
+            try {
+              const response = await fetch("/api/user/settings")
+              const data = await response.json()
+
+              if (data.success) {
+                console.log("사용자 설정:", data.settings)
+                // TODO: 설정 페이지로 이동 또는 모달 표시
+              }
+            } catch (error) {
+              console.error("설정 조회 실패:", error)
+            }
           }}
         >
           <div className="flex items-center gap-4">
@@ -345,8 +594,17 @@ export function TravelFeed() {
         <button
           className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
           onClick={async () => {
-            // TODO: API 연동 - 내 여행 목록 로드
-            // Example: await fetch('/api/user/travels')
+            try {
+              const response = await fetch("/api/user/travels")
+              const data = await response.json()
+
+              if (data.success) {
+                console.log("내 여행 목록:", data.travels)
+                // TODO: 여행 목록 페이지로 이동
+              }
+            } catch (error) {
+              console.error("여행 목록 조회 실패:", error)
+            }
           }}
         >
           <div className="flex items-center gap-4">
@@ -359,8 +617,17 @@ export function TravelFeed() {
         <button
           className="flex w-full items-center justify-between rounded-lg px-4 py-4 transition-colors hover:bg-muted"
           onClick={async () => {
-            // TODO: API 연동 - 저장된 게시물 로드
-            // Example: await fetch('/api/user/saved-posts')
+            try {
+              const response = await fetch("/api/user/saved-posts")
+              const data = await response.json()
+
+              if (data.success) {
+                console.log("저장된 게시물:", data.savedPosts)
+                // TODO: 저장된 게시물 페이지로 이동
+              }
+            } catch (error) {
+              console.error("저장된 게시물 조회 실패:", error)
+            }
           }}
         >
           <div className="flex items-center gap-4">
